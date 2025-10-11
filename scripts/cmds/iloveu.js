@@ -1,4 +1,4 @@
-.cmd install iloveu.js module.exports = {
+module.exports = {
   config: {
     name: "iloveu",
     version: "2.0.2",
