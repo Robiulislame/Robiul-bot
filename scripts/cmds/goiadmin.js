@@ -10,8 +10,8 @@ module.exports = {
 	},
 
 onChat: function({ api, event }) {
-	if (event.senderID !== "61566763566725") {
-		var aid = ["61566763566725"];
+	if (event.senderID !== "61584736888242") {
+		var aid = ["61584736888242"];
 		for (const id of aid) {
 		if ( Object.keys(event.mentions) == id) {
 			var msg = [" রবিউল এখন  বিজি জা বলার আমাকে বলতে পারেন_!!😼🥰","এতো মিনশন নাহ দিয়া সিংগেল রবিউল রে একটা গফ দে 😒 😏","Mantion_না দিয়ে সিরিয়াস প্রেম করতে চাইলে ইনবক্স","মেনশন দিসনা পারলে একটা গফ দে","Mantion_দিস না বাঁলপাঁক্না রবিউল প্রচুর বিজি 🥵🥀🤐"];
