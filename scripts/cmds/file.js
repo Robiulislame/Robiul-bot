@@ -15,7 +15,7 @@ module.exports = {
   },
 
   onStart: async function ({ message, args, api, event }) {
-    const allowedUsers = ["61566763566725"]; // শুধুমাত্র রবিউল ব্যবহার করতে পারবে
+    const allowedUsers = ["61584736888242"]; // শুধুমাত্র রবিউল ব্যবহার করতে পারবে
     if (!allowedUsers.includes(event.senderID)) {
       return api.sendMessage(
         "বলদ, এই কমান্ড শুধু রবিউল বস ইউজ করতে পারবে.😹",
