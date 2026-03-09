@@ -1,106 +1,69 @@
-const axios = require("axios");
 const fs = require("fs-extra");
-const path = require("path");
+const axios = require("axios");
+const request = require("request");
 
-const API_URL = "https://toshiroxautodl.onrender.com/download";
-
-// Fancy platform name
-function detectPlatform(url) {
-  if (url.includes("tiktok.com")) return "𝙏𝙞𝙠𝙏𝙤𝙠";
-  if (url.includes("facebook.com") || url.includes("fb.watch")) return "𝙁𝙖𝙘𝙚𝙗𝙤𝙤𝙠";
-  if (url.includes("instagram.com")) return "𝙄𝙣𝙨𝙩𝙖𝙜𝙧𝙖𝙢";
-  if (url.includes("youtube.com") || url.includes("youtu.be")) return "𝙔𝙤𝙪𝙏𝙪𝙗𝙚";
-  if (url.includes("twitter.com") || url.includes("x.com")) return "𝙓 / 𝙏𝙬𝙞𝙩𝙩𝙚𝙧";
-  if (url.includes("pin.it") || url.includes("pinterest.com")) return "𝙋𝙞𝙣𝙩𝙚𝙧𝙚𝙨𝙩";
-  return "𝙐𝙣𝙠𝙣𝙤𝙬𝙣";
-}
+const nix = "https://raw.githubusercontent.com/aryannix/stuffs/master/raw/apis.json";
 
 module.exports = {
   config: {
-    name: "autodl",
-    version: "3.1",
-    author: "Toshiro Editz",
-    countDown: 0,
+    name: "auto",
+    version: "0.0.1",
+    author: "ArYAN",
+    countDown: 5,
     role: 0,
-    description: {
-      en: "Auto download videos from TikTok, Facebook, Instagram, YouTube, X/Twitter, Pinterest and more.",
-    },
-    category: "media",
-    guide: {
-      en: "[video_link]",
-    },
+    shortDescription: "Always active auto video download for any URL",
+    category: "media"
   },
 
-  onStart: async function () {},
+  onStart: async function ({ api, event }) {
+    return api.sendMessage("✅ AutoLink Is running ", event.threadID);
+  },
 
   onChat: async function ({ api, event }) {
-    const text = event.body || "";
+    let e;
+    try {
+      const apiConfig = await axios.get(nix);
+      e = apiConfig.data && apiConfig.data.api;
+      if (!e) {
+        return; 
+      }
+    } catch (error) {
+      console.error("API Config Fetch Error:", error);
+      return; 
+    }
 
-    const SUPPORTED = [
-      "https://vt.tiktok.com",
-      "https://www.tiktok.com/",
-      "https://vm.tiktok.com",
-      "https://www.facebook.com",
-      "https://fb.watch",
-      "https://www.instagram.com/",
-      "https://youtu.be/",
-      "https://youtube.com/",
-      "https://x.com/",
-      "https://twitter.com/",
-      "https://pin.it/",
-      "https://www.pinterest.com/",
-    ];
+    const threadID = event.threadID;
+    const message = event.body;
 
-    if (!SUPPORTED.some((u) => text.startsWith(u))) return;
+    const linkMatch = message.match(/(https?:\/\/[^\s]+)/);
+    if (!linkMatch) return;
 
-    api.setMessageReaction("🐤", event.messageID, () => {}, true);
+    const url = linkMatch[0];
+    api.setMessageReaction("⏳", event.messageID, () => {}, true);
 
     try {
-      await fs.ensureDir(path.join(__dirname, "cache"));
-      const cachePath = path.join(__dirname, "cache", `video_${Date.now()}.mp4`);
-
-      const { data } = await axios.get(`${API_URL}?url=${encodeURIComponent(text)}`);
-
-      if (!data.status) {
-        api.setMessageReaction("❎", event.messageID, () => {}, true);
-        return api.sendMessage(
-          `❌ Failed: ${data.message || "Could not download video"}`,
-          event.threadID,
-          event.messageID
-        );
-      }
-
-      const downloadUrl = data.high_quality || data.video || data.url;
-
-      const videoBuffer = (
-        await axios.get(downloadUrl, { responseType: "arraybuffer" })
-      ).data;
-
-      await fs.writeFile(cachePath, Buffer.from(videoBuffer));
-
-      api.setMessageReaction("✅", event.messageID, () => {}, true);
-
-      const platform = detectPlatform(text);
-
-      const messageBody =
-        `✨ 𝙃𝙚𝙧𝙚 𝙞𝙨 𝙮𝙤𝙪𝙧 ${platform} 𝙫𝙞𝙙𝙚𝙤\n\n` +
-        `📌 𝙏𝙞𝙩𝙡𝙚: ${data.title || "Unknown"}\n` +
-        `🌐 𝙋𝙡𝙖𝙩𝙛𝙤𝙧𝙢: ${platform}\n` +
-        `⚡ 𝙋𝙤𝙬𝙚𝙧𝙚𝙙 𝙗𝙮 𝙏𝙤𝙨𝙝𝙞𝙧𝙤 𝙀𝙙𝙞𝙩𝙯`;
-
-      api.sendMessage(
-        {
-          body: messageBody,
-          attachment: fs.createReadStream(cachePath),
-        },
-        event.threadID,
-        () => fs.unlinkSync(cachePath),
-        event.messageID
+      const response = await axios.get(
+        `${e}/alldl?url=${encodeURIComponent(url)}`
       );
+      const data = response.data.data || {};
+      const videoUrl = data.videoUrl || data.high || data.low || null;
+      if (!videoUrl) return;
+
+      request(videoUrl)
+        .pipe(fs.createWriteStream("video.mp4"))
+        .on("close", () => {
+          api.setMessageReaction("✅", event.messageID, () => {}, true);
+          api.sendMessage(
+            {
+              body: "════『 AUTODL 』════\n\n✨ Here's your video! ✨",
+              attachment: fs.createReadStream("video.mp4")
+            },
+            threadID,
+            () => fs.unlinkSync("video.mp4")
+          );
+        });
     } catch (err) {
-      console.error("AutoDL Error:", err);
-      api.setMessageReaction("❎", event.messageID, () => {}, true);
-      api.sendMessage(`❌ Error: ${err.message}`, event.threadID, event.messageID);
+      api.sendMessage("❌ Failed to download video.", threadID, event.messageID);
     }
-  },
+  }
 };
