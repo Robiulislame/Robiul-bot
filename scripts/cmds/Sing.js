@@ -8,7 +8,7 @@ const nix = "https://raw.githubusercontent.com/aryannix/stuffs/master/raw/apis.j
 module.exports = {
   config: {
     name: "sing",
-    aliases: ["sing", "song"],
+    aliases: ["song", "song"],
     version: "0.0.1",
     author: "ArYAN",
     countDown: 5,
@@ -75,4 +75,3 @@ module.exports = {
     }
   }
 };
-      
