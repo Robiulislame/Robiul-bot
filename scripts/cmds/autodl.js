@@ -1,69 +1,73 @@
-const fs = require("fs-extra");
-const axios = require("axios");
-const request = require("request");
-
-const nix = "https://raw.githubusercontent.com/aryannix/stuffs/master/raw/apis.json";
+const fs = require("fs");
+const { downloadVideo } = require("sagor-video-downloader");
 
 module.exports = {
-  config: {
-    name: "auto",
-    version: "0.0.1",
-    author: "ArYAN",
-    countDown: 5,
-    role: 0,
-    shortDescription: "Always active auto video download for any URL",
-    category: "media"
-  },
+    config: {
+        name: "autolink",
+        version: "1.3",
+        author: "MOHAMMAD AKASH",
+        countDown: 5,
+        role: 0,
+        shortDescription: "Auto-download & send videos silently (no messages)",
+        category: "media",
+    },
 
-  onStart: async function ({ api, event }) {
-    return api.sendMessage("✅ AutoLink Is running ", event.threadID);
-  },
+    onStart: async function () {},
 
-  onChat: async function ({ api, event }) {
-    let e;
-    try {
-      const apiConfig = await axios.get(nix);
-      e = apiConfig.data && apiConfig.data.api;
-      if (!e) {
-        return; 
-      }
-    } catch (error) {
-      console.error("API Config Fetch Error:", error);
-      return; 
+    onChat: async function ({ api, event }) {
+        const threadID = event.threadID;
+        const messageID = event.messageID;
+        const message = event.body || "";
+
+        const linkMatches = message.match(/(https?:\/\/[^\s]+)/g);
+        if (!linkMatches || linkMatches.length === 0) return;
+
+        const uniqueLinks = [...new Set(linkMatches)];
+
+        api.setMessageReaction("⏳", messageID, () => {}, true);
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const url of uniqueLinks) {
+            try {
+                const { title, filePath } = await downloadVideo(url);
+                if (!filePath || !fs.existsSync(filePath)) throw new Error();
+
+                const stats = fs.statSync(filePath);
+                const fileSizeInMB = stats.size / (1024 * 1024);
+
+                if (fileSizeInMB > 25) {
+                    fs.unlinkSync(filePath);
+                    failCount++;
+                    continue;
+                }
+
+                await api.sendMessage(
+                    {
+                        body:
+`📥 ᴠɪᴅᴇᴏ ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ  
+━━━━━━━━━━━━━━━  
+🎬 ᴛɪᴛʟᴇ: ${title || "Video File"}  
+📦 sɪᴢᴇ: ${fileSizeInMB.toFixed(2)} MB  
+━━━━━━━━━━━━━━━`,
+                        attachment: fs.createReadStream(filePath)
+                    },
+                    threadID,
+                    () => fs.unlinkSync(filePath)
+                );
+
+                successCount++;
+
+            } catch {
+                failCount++;
+            }
+        }
+
+        const finalReaction =
+            successCount > 0 && failCount === 0 ? "✅" :
+            successCount > 0 ? "⚠️" : "❌";
+
+        api.setMessageReaction(finalReaction, messageID, () => {}, true);
     }
-
-    const threadID = event.threadID;
-    const message = event.body;
-
-    const linkMatch = message.match(/(https?:\/\/[^\s]+)/);
-    if (!linkMatch) return;
-
-    const url = linkMatch[0];
-    api.setMessageReaction("⏳", event.messageID, () => {}, true);
-
-    try {
-      const response = await axios.get(
-        `${e}/alldl?url=${encodeURIComponent(url)}`
-      );
-      const data = response.data.data || {};
-      const videoUrl = data.videoUrl || data.high || data.low || null;
-      if (!videoUrl) return;
-
-      request(videoUrl)
-        .pipe(fs.createWriteStream("video.mp4"))
-        .on("close", () => {
-          api.setMessageReaction("✅", event.messageID, () => {}, true);
-          api.sendMessage(
-            {
-              body: "════『 AUTODL 』════\n\n✨ Here's your video! ✨",
-              attachment: fs.createReadStream("video.mp4")
-            },
-            threadID,
-            () => fs.unlinkSync("video.mp4")
-          );
-        });
-    } catch (err) {
-      api.sendMessage("❌ Failed to download video.", threadID, event.messageID);
-    }
-  }
 };
